@@ -1,5 +1,12 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
+
+# Sidebar
+st.sidebar.success("Giáo Viên Hướng Dẫn: \n # KHUẤT THUỲ PHƯƠNG")
+st.sidebar.success("Học Viên:\n # NGUYỄN CHẤN NAM \n # CHẾ THỊ ANH TUYỀN")
+st.sidebar.success("Ngày báo cáo: \n # 16/12/2024")
+
 
 # Đọc dữ liệu sản phẩm và đánh giá
 san_pham = pd.read_csv('San_pham.csv', index_col='ma_san_pham')
@@ -33,15 +40,109 @@ def load_users(df):
 # Hiển thị thông tin đánh giá của khách hàng
 def display_customer_reviews(maKH, df_reviews):
     filtered_reviews = df_reviews[df_reviews['ma_khach_hang'] == maKH]
-    filtered_reviews=filtered_reviews[['ngay_binh_luan', 'gio_binh_luan','ma_san_pham', 'ten_san_pham', 'gia_ban',
-                               'noi_dung_binh_luan','phan_loai_danh_gia', 'so_sao' ]]
+    filtered_reviews = filtered_reviews[['ngay_binh_luan', 'gio_binh_luan','ma_san_pham', 'ten_san_pham', 'gia_ban',
+                                         'noi_dung_binh_luan','phan_loai_danh_gia', 'so_sao']]
     filtered_reviews['ngay_binh_luan'] = pd.to_datetime(filtered_reviews['ngay_binh_luan'], errors='coerce')  # Đảm bảo 'ngay_binh_luan' có kiểu dữ liệu ngày tháng
     filtered_reviews = filtered_reviews.sort_values(by='ngay_binh_luan', ascending=False)  # Sắp xếp giảm dần theo ngày
-    if not filtered_reviews.empty:
-        # st.write("Thông tin đánh giá của khách hàng:")
-        st.dataframe(filtered_reviews)
+    
+    # Hiển thị số lượng đánh giá
+    num_reviews = len(filtered_reviews)
+    num_products = filtered_reviews['ma_san_pham'].nunique()
+    
+    # # Hiển thị số sao
+    # star_count = filtered_reviews['so_sao'].value_counts().sort_index().reset_index()
+    # star_count.columns = ['so_sao', 'count']  # Đổi tên cột thành 'so_sao' và 'count'
+    # # Thay đổi giá trị trong cột 'so_sao' thành 'x sao'
+    # star_count['so_sao'] = star_count['so_sao'].astype(str) + ' sao'
+    # # Đặt 'so_sao' làm chỉ mục và chuyển thành dạng transpose
+    # star_count = star_count.set_index('so_sao').T
+
+    
+    
+    # Hiển thị phân loại đánh giá (positive/negative)
+    positive_count = filtered_reviews[filtered_reviews['phan_loai_danh_gia'] == 'positive'].shape[0]
+    negative_count = filtered_reviews[filtered_reviews['phan_loai_danh_gia'] == 'negative'].shape[0]
+    
+    # Hiển thị thông tin tổng quát
+    st.write(f"Bạn đã đánh giá: {num_reviews} lần.")
+    st.write(f"Tổng sản phẩm bạn đã đánh giá: {num_products} sản phẩm.")
+#---------- số sao đánh giá
+    # Thay đổi giá trị sao thành chuỗi và đếm số lượng sao
+    star_count = filtered_reviews['so_sao'].value_counts().sort_index().reset_index()
+    star_count.columns = ['so_sao', 'count']
+
+    # Chuyển đổi các giá trị sao thành chuỗi và thêm " sao"
+    star_count['so_sao'] = star_count['so_sao'].astype(str) + ' sao'
+
+    # Đảm bảo rằng có đầy đủ 5 mức sao từ 1 sao đến 5 sao, nếu thiếu, thêm các mức sao có giá trị count = 0
+    all_stars = ['1 sao', '2 sao', '3 sao', '4 sao', '5 sao']
+    star_count = star_count.set_index('so_sao').reindex(all_stars, fill_value=0).reset_index()
+
+    # Vẽ biểu đồ barchart
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.bar(star_count['so_sao'], star_count['count'], color='skyblue')
+    ax.set_xlabel('Số sao')
+    ax.set_ylabel('Số lượng')
+    ax.set_title('Số lượng đánh giá theo mức sao')
+
+    # Hiển thị biểu đồ trong Streamlit
+    st.pyplot(fig)
+#---------------
+    
+    st.write(f"Số đánh giá tích cực: {positive_count}, số đánh giá tiêu cực: {negative_count}")
+    
+    # Biểu đồ phân phối giá các sản phẩm bạn đã đánh giá
+    plt.figure(figsize=(8, 6))
+    filtered_reviews.groupby('ma_san_pham')['gia_ban'].mean().plot(kind='bar', color='lightblue')
+    plt.title("Phân phối giá các sản phẩm đã đánh giá")
+    plt.xlabel("Sản phẩm")
+    plt.ylabel("Giá trung bình")
+    plt.xticks(rotation=45)
+    # Hiển thị biểu đồ
+    st.pyplot(plt)
+
+        # Biểu đồ phân phối đánh giá theo ngày
+    plt.figure(figsize=(10, 6))
+    # Chuyển cột 'ngay_binh_luan' về dạng datetime nếu chưa có
+    filtered_reviews['ngay_binh_luan'] = pd.to_datetime(filtered_reviews['ngay_binh_luan'], errors='coerce')
+    # Nhóm theo ngày và đếm số lượng đánh giá mỗi ngày
+    date_counts = filtered_reviews.groupby(filtered_reviews['ngay_binh_luan'].dt.date).size()
+    # Vẽ biểu đồ
+    date_counts.plot(kind='line', marker='o', color='orange')
+    plt.title("Phân phối đánh giá theo ngày")
+    plt.xlabel("Ngày")
+    plt.ylabel("Số lượng đánh giá")
+    plt.xticks(rotation=45)  # Nghiêng nhãn ngày 45 độ
+    # Hiển thị biểu đồ
+    st.pyplot(plt)
+
+
+    # Tiêu đề ứng dụng
+    st.title("Tìm kiếm thông tin đánh giá sản phẩm")
+
+    # Tuỳ chọn phương thức tìm kiếm
+    search_option = st.radio("Chọn phương thức tìm kiếm:", ["Chọn từ danh sách", "Tìm theo từ khóa"])
+
+    # Cách 1: Tìm kiếm bằng Selectbox
+    if search_option == "Chọn từ danh sách":
+        search_product = st.selectbox("Thông tin sản phẩm đã đánh giá", filtered_reviews['ten_san_pham'].unique())
+        product_reviews = filtered_reviews[filtered_reviews['ten_san_pham'] == search_product]
+
+    # Cách 2: Tìm kiếm bằng từ khóa
+    elif search_option == "Tìm theo từ khóa":
+        keyword = st.text_input("Nhập từ khóa tìm kiếm sản phẩm")
+        if keyword:  # Chỉ tìm kiếm nếu có từ khóa nhập vào
+            product_reviews = filtered_reviews[filtered_reviews['ten_san_pham'].str.contains(keyword, case=False, na=False)]
+        else:
+            product_reviews = pd.DataFrame()  # Không có từ khóa thì kết quả rỗng
+
+    # Hiển thị kết quả đánh giá
+    if not product_reviews.empty:
+        st.write(f"Thông tin đánh giá cho sản phẩm:")
+        st.dataframe(product_reviews[['ten_san_pham','ngay_binh_luan', 'noi_dung_binh_luan', 'phan_loai_danh_gia', 'so_sao']])
     else:
-        st.warning("Khách hàng này chưa có đánh giá sản phẩm nào.")
+        st.write("Không tìm thấy sản phẩm nào phù hợp.")
+
 
 # Giao diện Streamlit
 def main():
@@ -79,7 +180,7 @@ def main():
                 st.error("Sai tên đăng nhập hoặc mật khẩu!")
     else:
         # Nếu đã đăng nhập
-        st.success(f"Xin chào khách hàng có mã số: {st.session_state['username']}, Họ tên: {st.session_state['ho_ten']}")
+        st.markdown(f"##### Xin chào khách hàng: **{st.session_state['ho_ten']}** \n ##### Mã số khách hàng **{st.session_state['username']}**")
 
         # Hiển thị lịch sử đánh giá sản phẩm của khách hàng
         st.markdown("#### Lịch sử đánh giá sản phẩm")

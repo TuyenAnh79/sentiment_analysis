@@ -255,108 +255,97 @@ with tab2:
 
 
 ########################## WORDCLOUD NỘI DUNG BÌNH LUẬN TRỨC VÀ SAU KHI XỬ LÝ
-
-# Tạo hai tab
-st.header('6. WordCloud')
-
-tab1, tab2 = st.tabs(["Nội dung bình luận sau khi xử lý", "Nội dung bình luận trước khi xử lý"])
-# Nội dung cho Tab 1
-with tab1:
-    # st.subheader("Từ tích cực")
-    st.image('binh_luan_sau_xu_ly.png')
-
-# Nội dung cho Tab 2
-with tab2:
-    # st.header("Từ tiêu cực")
-    st.image('binh_luan_truoc_xu_ky.png')
-
-##################### WC POSITIVE, NEGATIVE WORDS
-
-# Hàm tạo WordCloud và trả về các từ phổ biến nhất
-def plot_wordcloud_and_get_top_words(text, stopwords=None, num_words=10):
+# HÀM VẼ WORDCLOUD
+def generate_wordcloud_and_top_words(text, stopwords=None, slider_key="slider"):
     """
-    Tạo Word Cloud và trả về các từ xuất hiện nhiều nhất.
+    Tạo Word Cloud và trả về từ điển chứa các từ phổ biến nhất.
     """
     # Tính tần suất từ
     words = text.split()
     word_counts = Counter(words)
-    
+
     # Loại bỏ stopwords (nếu có)
     if stopwords:
         word_counts = Counter({word: count for word, count in word_counts.items() if word not in stopwords})
-    
-    # Tạo Word Cloud
-    wordcloud = WordCloud(stopwords=stopwords, width=800, height=400, background_color='white').generate_from_frequencies(word_counts)
-    
-    # Vẽ Word Cloud
+
+    # Chỉ giữ lại các từ phổ biến nhất thông qua slider (thêm key để tránh lỗi)
+    num_words = st.slider("Chọn số lượng từ phổ biến để hiển thị", min_value=5, max_value=50, value=10, step=1, key=slider_key)
+    top_words = word_counts.most_common(num_words)
+    top_words_dict = dict(top_words)
+
+    # Trả về Word Cloud và danh sách top từ phổ biến
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate_from_frequencies(top_words_dict)
+    return wordcloud, top_words
+#----------
+
+# Tạo hai tab cho WORD CLOUD
+st.header('6. WordCloud CHO BÌNH LUẬN')
+
+# Nối tất cả các bình luận thành một văn bản
+text = " ".join(df['noi_dung_binh_luan'].dropna())
+
+# Gọi hàm và chia tab
+wordcloud, top_words = generate_wordcloud_and_top_words(text, slider_key="slider")
+tab1, tab2 = st.tabs(["Word Cloud ", "Top Từ Phổ Biến"])
+
+with tab1:
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.imshow(wordcloud, interpolation='bilinear')
     ax.axis('off')
-    st.pyplot(fig)  # Hiển thị Word Cloud trong Streamlit
-    
-    # Lấy 10 từ phổ biến nhất
-    top_words = word_counts.most_common(num_words)
-    return top_words
+    st.pyplot(fig)
 
-# Giao diện Streamlit POSITIVE
+with tab2:
+    for word, count in top_words:
+        st.write(f"{word}: {count}")
+
+
+##################### WC POSITIVE, NEGATIVE WORDS
+
+# POSITIVE
 st.subheader("Word Cloud và Top Từ POSITIVE Phổ Biến")
 
-# Đọc văn bản từ tập tin positive_words_VN.txt
-text_file_path = "positive_words_VN.txt"  # Đường dẫn đến file văn bản
 try:
-    with open(text_file_path, 'r', encoding='utf-8') as f:
-        text = f.read()  # Đọc nội dung từ file
+    with open("positive_words_VN.txt", 'r', encoding='utf-8') as f:
+        text_positive = f.read()
 except FileNotFoundError:
-    st.error(f"Không tìm thấy file '{text_file_path}'. Hãy kiểm tra lại đường dẫn!")
+    st.error("Không tìm thấy file 'positive_words_VN.txt'.")
 
-# Đọc danh sách stopwords từ tập tin stopwords.txt
-stopwords_file_path = "vietnamese-stopwords.txt"  # Đường dẫn đến file stopwords
-stopwords = set()
-try:
-    with open(stopwords_file_path, 'r', encoding='utf-8') as f:
-        stopwords_content = f.read()
-        stopwords = set(stopwords_content.splitlines())  # Tách mỗi dòng thành một stopword
-except FileNotFoundError:
-    st.error(f"Không tìm thấy file '{stopwords_file_path}'. Hãy kiểm tra lại đường dẫn!")
+# Gọi hàm và chia tab
+wordcloud_positive, top_words_positive = generate_wordcloud_and_top_words(text_positive, slider_key="slider_positive")
+tab1_positive, tab2_positive = st.tabs(["Word Cloud POSITIVE", "Top Từ Phổ Biến POSITIVE"])
 
-# Tạo 2 tab trong Streamlit
-tab1, tab2 = st.tabs(["Word Cloud", "Top 10 Từ Phổ Biến"])
+with tab1_positive:
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.imshow(wordcloud_positive, interpolation='bilinear')
+    ax.axis('off')
+    st.pyplot(fig)
 
-# Tab Word Cloud
-with tab1:
-    st.subheader("Word Cloud")
-    top_words = plot_wordcloud_and_get_top_words(text, stopwords=stopwords)
+with tab2_positive:
+    for word, count in top_words_positive:
+        st.write(f"{word}: {count}")
 
-# Tab Top 10 Từ
-with tab2:
-    st.subheader("Top 10 Từ Phổ Biến Nhất")
-    st.write(pd.DataFrame(top_words, columns=["Từ", "Tần suất"]))
-
-#-------------------------
-# Giao diện Streamlit NEGATIVE
+# NEGATIVE
 st.subheader("Word Cloud và Top Từ NEGATIVE Phổ Biến")
 
-# Đọc văn bản từ tập tin positive_words_VN.txt
-text_file_path = "negative_words_VN.txt"  # Đường dẫn đến file văn bản
 try:
-    with open(text_file_path, 'r', encoding='utf-8') as f:
-        text = f.read()  # Đọc nội dung từ file
+    with open("negative_words_VN.txt", 'r', encoding='utf-8') as f:
+        text_negative = f.read()
 except FileNotFoundError:
-    st.error(f"Không tìm thấy file '{text_file_path}'. Hãy kiểm tra lại đường dẫn!")
+    st.error("Không tìm thấy file 'negative_words_VN.txt'.")
 
+# Gọi hàm và chia tab
+wordcloud_negative, top_words_negative = generate_wordcloud_and_top_words(text_negative, slider_key="slider_negative")
+tab1_negative, tab2_negative = st.tabs(["Word Cloud NEGATIVE", "Top Từ Phổ Biến NEGATIVE"])
 
-# Tạo 2 tab trong Streamlit
-tab1, tab2 = st.tabs(["Word Cloud", "Top 10 Từ Phổ Biến"])
+with tab1_negative:
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.imshow(wordcloud_negative, interpolation='bilinear')
+    ax.axis('off')
+    st.pyplot(fig)
 
-# Tab Word Cloud
-with tab1:
-    st.subheader("Word Cloud")
-    top_words = plot_wordcloud_and_get_top_words(text, stopwords=stopwords)
-
-# Tab Top 10 Từ
-with tab2:
-    st.subheader("Top 10 Từ Phổ Biến Nhất")
-    st.write(pd.DataFrame(top_words, columns=["Từ", "Tần suất"]))
+with tab2_negative:
+    for word, count in top_words_negative:
+        st.write(f"{word}: {count}")
 
 
 ###################
